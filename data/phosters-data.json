@@ -1,0 +1,234 @@
+{
+  "subjects": [
+    {
+      "id": "english",
+      "name": "📖 Use of English",
+      "icon": "📖",
+      "groupKey": "ENGLISH_URL"
+    },
+    {
+      "id": "maths",
+      "name": "📐 Mathematics",
+      "icon": "📐",
+      "groupKey": "MATHS_URL"
+    },
+    {
+      "id": "further_maths",
+      "name": "📐 Further Mathematics",
+      "icon": "📐",
+      "groupKey": "FURTHER_MATHS_URL"
+    },
+    {
+      "id": "biology",
+      "name": "🧬 Biology",
+      "icon": "🧬",
+      "groupKey": "BIOLOGY_URL"
+    },
+    {
+      "id": "physics",
+      "name": "⚡ Physics",
+      "icon": "⚡",
+      "groupKey": "PHYSICS_URL"
+    },
+    {
+      "id": "chemistry",
+      "name": "🧪 Chemistry",
+      "icon": "🧪",
+      "groupKey": "CHEMISTRY_URL"
+    },
+    {
+      "id": "crs",
+      "name": "✝️ Christian Religious Studies",
+      "icon": "✝️",
+      "groupKey": "CRS_URL"
+    },
+    {
+      "id": "literature",
+      "name": "📚 Literature in English",
+      "icon": "📚",
+      "groupKey": "LITERATURE_URL"
+    },
+    {
+      "id": "government",
+      "name": "🏛 Government",
+      "icon": "🏛",
+      "groupKey": "GOVERNMENT_URL"
+    },
+    {
+      "id": "economics",
+      "name": "📊 Economics",
+      "icon": "📊",
+      "groupKey": "ECONOMICS_URL"
+    }
+  ],
+  "students": [
+    {
+      "userId": "8940642550",
+      "department": "arts",
+      "courseId": "law",
+      "courseName": "Law (Common Law / Civil Law)",
+      "registeredSubjects": [
+        "english",
+        "literature",
+        "government",
+        "economics"
+      ],
+      "updatedAt": "2026-10-15T00:19:53.452Z"
+    },
+    {
+      "userId": "5230974350",
+      "department": "commercial",
+      "courseId": null,
+      "courseName": "Custom Registered Combination",
+      "registeredSubjects": [
+        "english",
+        "maths",
+        "economics",
+        "government"
+      ],
+      "updatedAt": "2026-10-15T01:00:26.369Z"
+    }
+  ],
+  "tutors": [
+    {
+      "userId": "8940642550",
+      "name": "Head Administrator",
+      "role": "head_admin",
+      "subjects": [
+        "all"
+      ]
+    }
+  ],
+  "tutorInvites": [
+    {
+      "code": "inv_ff1e8336",
+      "subjectIds": [
+        "english"
+      ],
+      "createdBy": "8940642550",
+      "createdAt": "2026-10-15T01:12:11.442Z",
+      "redeemed": false
+    },
+    {
+      "code": "inv_53b44c36",
+      "subjectIds": [
+        "maths"
+      ],
+      "createdBy": "8940642550",
+      "createdAt": "2026-10-15T01:14:27.677Z",
+      "redeemed": false
+    },
+    {
+      "code": "inv_b9ced745",
+      "subjectIds": [
+        "further_maths"
+      ],
+      "createdBy": "8940642550",
+      "createdAt": "2026-10-15T01:15:02.935Z",
+      "redeemed": false
+    },
+    {
+      "code": "inv_8286d4e1",
+      "subjectIds": [
+        "biology"
+      ],
+      "createdBy": "8940642550",
+      "createdAt": "2026-10-15T01:15:23.993Z",
+      "redeemed": false
+    },
+    {
+      "code": "inv_a6b502ac",
+      "subjectIds": [
+        "physics"
+      ],
+      "createdBy": "8940642550",
+      "createdAt": "2026-10-15T01:15:42.897Z",
+      "redeemed": false
+    },
+    {
+      "code": "inv_04e55c48",
+      "subjectIds": [
+        "chemistry"
+      ],
+      "createdBy": "8940642550",
+      "createdAt": "2026-10-15T01:16:01.978Z",
+      "redeemed": false
+    },
+    {
+      "code": "inv_be8db20f",
+      "subjectIds": [
+        "crs"
+      ],
+      "createdBy": "8940642550",
+      "createdAt": "2026-10-15T01:16:20.869Z",
+      "redeemed": false
+    },
+    {
+      "code": "inv_d341b528",
+      "subjectIds": [
+        "literature"
+      ],
+      "createdBy": "8940642550",
+      "createdAt": "2026-10-15T01:16:40.271Z",
+      "redeemed": false
+    },
+    {
+      "code": "inv_16344bc4",
+      "subjectIds": [
+        "government"
+      ],
+      "createdBy": "8940642550",
+      "createdAt": "2026-10-15T01:16:58.302Z",
+      "redeemed": false
+    },
+    {
+      "code": "inv_d278955e",
+      "subjectIds": [
+        "economics"
+      ],
+      "createdBy": "8940642550",
+      "createdAt": "2026-10-15T01:17:55.145Z",
+      "redeemed": false
+    }
+  ],
+  "groupChatIds": {
+    "further_maths": -1004259463088,
+    "economics": -1003802026580,
+    "government": -1003885614041,
+    "literature": -1003967576187,
+    "crs": -1003812127032,
+    "chemistry": -1004329375877,
+    "physics": -1004445883060,
+    "biology": -1004304265721,
+    "maths": -1003911627270,
+    "english": -1003882027748
+  },
+  "lessons": [
+    {
+      "id": "les_mv8sny0f5a66e5",
+      "subjectId": "biology",
+      "title": "Cell structure",
+      "type": "youtube",
+      "url": "https://youtu.be/URUJD5NEXC8?si=FKxZt0sSuGrv6_4T",
+      "fileId": null,
+      "tutorId": "8940642550",
+      "tutorName": "Daniel",
+      "createdAt": "2026-10-15T00:22:18.390Z"
+    }
+  ],
+  "materials": [
+    {
+      "id": "mat_mv8sq4zw07f5cf",
+      "subjectId": "biology",
+      "title": "Past questions",
+      "fileId": "BQACAgQAAxkBAAMwatAdH_Q-1t4Uawg-MUNZLRDUh48AAigfAAKEYoFSTF3T51sFsnY9BA",
+      "fileName": "phosterstuts.pdf",
+      "fileSize": "0.2 MB",
+      "tutorId": "8940642550",
+      "tutorName": "Daniel",
+      "createdAt": "2026-10-15T00:24:00.716Z"
+    }
+  ],
+  "tests": [],
+  "results": []
+}
