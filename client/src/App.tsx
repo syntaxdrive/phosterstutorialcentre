@@ -60,16 +60,14 @@ export function App() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#baacf8] p-2 sm:p-6 lg:p-8 flex items-center justify-center antialiased">
-      {/* Main Tablet/Desktop Enclosure with 10px Dark Frame */}
-      <div className="w-full max-w-[1380px] bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border-[10px] border-slate-900 flex flex-col md:flex-row min-h-[820px]">
-        {/* Slim Dark Vertical Sidebar */}
-        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+    <div className="min-h-screen w-full bg-white flex flex-col md:flex-row antialiased">
+      {/* Slim Dark Vertical Sidebar (Sticky on Desktop) */}
+      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-        {/* Primary Content Canvas */}
-        <div className="flex-1 flex flex-col min-w-0 bg-white overflow-y-auto max-h-[92vh] custom-scroll">
-          {/* Header Bar */}
-          <Header user={currentUser} breadcrumb={breadcrumbs[activeTab]} />
+      {/* Primary Responsive Content Canvas */}
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen bg-white">
+        {/* Header Bar */}
+        <Header user={currentUser} breadcrumb={breadcrumbs[activeTab]} />
 
           {/* Subheader Route Switcher Pills */}
           <div className="px-6 sm:px-10 pt-4 flex items-center justify-between border-b border-slate-100">
@@ -277,7 +275,6 @@ export function App() {
           )}
         </div>
       </div>
-    </div>
   );
 }
 

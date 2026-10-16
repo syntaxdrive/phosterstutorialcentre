@@ -20,7 +20,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
   return (
-    <aside className="w-full md:w-[76px] bg-[#111214] flex md:flex-col items-center justify-between py-4 md:py-7 px-4 md:px-0 border-r border-slate-800 shrink-0 z-20">
+    <aside className="w-full md:w-[76px] md:h-screen md:sticky md:top-0 bg-[#111214] flex md:flex-col items-center justify-between py-4 md:py-7 px-4 md:px-0 border-r border-slate-800 shrink-0 z-20">
       {/* Top Brand Logo */}
       <div className="flex flex-col items-center space-y-6">
         <div className="w-10 h-10 rounded-xl bg-slate-800/90 border border-slate-700/80 text-white flex items-center justify-center cursor-pointer shadow-lg hover:scale-105 transition-transform">
