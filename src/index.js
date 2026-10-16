@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import http from "node:http";
+import { processNaturalLanguage, getQuestionExplanation } from "./ai.js";
 
 const TOKEN = process.env.BOT_TOKEN?.trim();
 const ADMIN_IDS = new Set(
@@ -1263,7 +1264,11 @@ async function showCorrections(ctx, resultId) {
     text += `\n`;
   });
 
-  const keyboard = new InlineKeyboard()
+  const keyboard = new InlineKeyboard();
+  if (result.score < result.total) {
+    keyboard.text("🤖 Explain Mistakes with AI", `ai_rev:${result.id}`).row();
+  }
+  keyboard
     .text("🔄 Retake Test", `take:${test.id}`)
     .text("🏠 Dashboard", "dash:home");
 
@@ -2242,6 +2247,117 @@ bot.callbackQuery(/^rev:(.+)$/, async (ctx) => {
   await showCorrections(ctx, ctx.match[1]);
 });
 
+bot.callbackQuery(/^ai_rev:(.+)$/, async (ctx) => {
+  const resultId = ctx.match[1];
+  const result = database.results.find((r) => r.id === resultId);
+  if (!result) return ctx.answerCallbackQuery({ text: "Result not found.", show_alert: true });
+  const test = database.tests.find((t) => t.id === result.testId);
+  if (!test) return ctx.answerCallbackQuery({ text: "Test questions not found.", show_alert: true });
+
+  await ctx.answerCallbackQuery({ text: "🤖 Phosters AI is analyzing your mistakes..." });
+
+  const missed = [];
+  test.questions.forEach((q, idx) => {
+    const studentAns = result.answers?.[idx] || "None";
+    if (studentAns !== q.correctAnswer) {
+      missed.push({ index: idx + 1, q, studentAns });
+    }
+  });
+
+  if (!missed.length) {
+    return ctx.reply("🎉 <b>Flawless score!</b> You answered every question correctly on this test!", { parse_mode: "HTML" });
+  }
+
+  await ctx.replyWithChatAction("typing");
+
+  const subj = database.subjects.find((s) => s.id === test.subjectId);
+  const subjectName = subj?.name || "JAMB Subject";
+
+  let analysisText =
+    `🤖 <b>AI CORRECTION MASTERCLASS</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `📝 <b>Test:</b> ${escapeHtml(test.title)}\n` +
+    `💡 <i>High-yield breakdown of your missed question(s):</i>\n\n`;
+
+  for (const item of missed.slice(0, 3)) {
+    try {
+      const explanation = await getQuestionExplanation({
+        questionText: item.q.question,
+        options: item.q.options,
+        studentAnswer: item.studentAns,
+        correctAnswer: item.q.correctAnswer,
+        subjectName
+      });
+
+      analysisText +=
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `<b>Q${item.index}: ${escapeHtml(item.q.question)}</b>\n` +
+        `• Your Answer: ❌ <b>${item.studentAns}</b>\n` +
+        `• Correct Answer: ✅ <b>${item.q.correctAnswer}</b>\n\n` +
+        `${explanation}\n\n`;
+    } catch (err) {
+      analysisText +=
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `<b>Q${item.index}: ${escapeHtml(item.q.question)}</b>\n` +
+        `• Your Answer: ❌ <b>${item.studentAns}</b>\n` +
+        `• Correct Answer: ✅ <b>${item.q.correctAnswer}</b>\n` +
+        `• Explanation: ${escapeHtml(item.q.explanation || "Review relevant textbook chapter.")}\n\n`;
+    }
+  }
+
+  const keyboard = new InlineKeyboard()
+    .text("🔄 Retake Test", `take:${test.id}`)
+    .text("🏠 Dashboard", "dash:home");
+
+  await ctx.reply(analysisText.slice(0, 4000), {
+    parse_mode: analysisText.includes("<b") || analysisText.includes("<i") ? "HTML" : undefined,
+    reply_markup: keyboard
+  });
+});
+
+bot.callbackQuery(/^ai_pub:(.+)$/, async (ctx) => {
+  if (!isTutor(ctx)) {
+    return ctx.answerCallbackQuery({ text: "⛔ Only appointed tutors can publish tests.", show_alert: true });
+  }
+  const testId = ctx.match[1];
+  const test = database.tests.find((t) => t.id === testId);
+  if (!test) return ctx.answerCallbackQuery({ text: "Test not found.", show_alert: true });
+
+  await ctx.answerCallbackQuery({ text: "🚀 Broadcasting test to subject group..." });
+  await broadcastTestPublished(test);
+
+  const subj = database.subjects.find((s) => s.id === test.subjectId);
+  await ctx.editMessageText(
+    `✅ <b>AI TEST BROADCASTED SUCCESSFULLY!</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `📝 <b>Title:</b> ${escapeHtml(test.title)}\n` +
+    `🏛 <b>Subject:</b> ${subj?.name || "General"}\n` +
+    `❓ <b>Questions:</b> ${test.questions.length}\n` +
+    `⏱ <b>Duration:</b> ${test.durationMinutes} mins\n\n` +
+    `<i>Students in the group can now tap the broadcast link to take this mock exam privately!</i>`,
+    {
+      parse_mode: "HTML",
+      reply_markup: new InlineKeyboard()
+        .text("📝 Take Preview", `take_${test.id}`)
+        .text("🧑‍🏫 Tutor Cockpit", `tut_subj:${test.subjectId}`)
+    }
+  );
+});
+
+bot.callbackQuery(/^del_test:(.+)$/, async (ctx) => {
+  if (!isTutor(ctx)) {
+    return ctx.answerCallbackQuery({ text: "⛔ Unauthorized.", show_alert: true });
+  }
+  const testId = ctx.match[1];
+  const idx = database.tests.findIndex((t) => t.id === testId);
+  if (idx >= 0) {
+    database.tests.splice(idx, 1);
+    await saveDatabase();
+  }
+  await ctx.answerCallbackQuery({ text: "🗑 Test deleted." });
+  await ctx.editMessageText("🗑 <b>This test has been deleted.</b>", { parse_mode: "HTML" });
+});
+
 // ---------------- MESSAGE HANDLERS ----------------
 bot.on("message:text", async (ctx, next) => {
   if (!isTutor(ctx)) return next();
@@ -2389,7 +2505,187 @@ bot.on("message:text", async (ctx, next) => {
     return;
   }
 
-  return next();
+  // ---------------- AI NATURAL LANGUAGE PROCESSING ----------------
+  // If message is a slash command, let the command dispatcher handle it
+  if (text.startsWith("/")) {
+    return next();
+  }
+
+  const isPrivate = ctx.chat?.type === "private";
+  const botUser = await getBotUsername();
+
+  // In groups, only respond if directly mentioned or replied to
+  if (!isPrivate) {
+    const isMentioned = text.includes(`@${botUser}`) || ctx.message.reply_to_message?.from?.id === ctx.me?.id;
+    if (!isMentioned) return next();
+  }
+
+  const cleanPrompt = text.replace(new RegExp(`@${botUser}`, "gi"), "").trim();
+  if (!cleanPrompt) return;
+
+  await ctx.replyWithChatAction("typing");
+
+  const student = getStudentProfile(ctx.from.id);
+  const tutorUser = isTutor(ctx);
+
+  try {
+    const aiResult = await processNaturalLanguage({
+      text: cleanPrompt,
+      user: ctx.from,
+      isTutorUser: tutorUser,
+      enrolledSubjects: student?.subjects || []
+    });
+
+    // 1. TUTOR ACTION: CREATE TEST / QUIZ
+    if (aiResult.intent === "CREATE_QUIZ" && tutorUser && Array.isArray(aiResult.questions) && aiResult.questions.length > 0) {
+      let targetSubject = database.subjects.find((s) => s.id === aiResult.subjectId);
+      if (!targetSubject) {
+        targetSubject = database.subjects.find((s) =>
+          aiResult.title?.toLowerCase().includes(s.id) ||
+          aiResult.topic?.toLowerCase().includes(s.id) ||
+          cleanPrompt.toLowerCase().includes(s.id)
+        ) || database.subjects[0];
+      }
+
+      if (!canManageSubject(ctx, targetSubject.id)) {
+        await ctx.reply(
+          `⚠️ You do not have permission to publish tests for <b>${escapeHtml(targetSubject.name)}</b>.\n` +
+          `Your appointed subjects: <i>${getTutorRecord(ctx)?.subjects?.join(", ") || "None"}</i>`,
+          { parse_mode: "HTML" }
+        );
+        return;
+      }
+
+      const questions = aiResult.questions.map((q) => {
+        const cIdx = typeof q.correctIndex === "number" && q.correctIndex >= 0 && q.correctIndex < 4 ? q.correctIndex : 0;
+        return {
+          question: q.text,
+          options: Array.isArray(q.options) && q.options.length === 4 ? q.options : ["A", "B", "C", "D"],
+          correctAnswer: LETTERS[cIdx],
+          explanation: q.explanation || ""
+        };
+      });
+
+      const test = {
+        id: newId("test"),
+        subjectId: targetSubject.id,
+        title: aiResult.title || `${targetSubject.name} AI Mock Test`,
+        durationMinutes: typeof aiResult.timeMinutes === "number" && aiResult.timeMinutes > 0 ? aiResult.timeMinutes : 10,
+        questions,
+        creatorId: String(ctx.from.id),
+        createdAt: new Date().toISOString(),
+        aiGenerated: true
+      };
+
+      database.tests.push(test);
+      await saveDatabase();
+
+      let previewText =
+        `🤖 <b>AI TEST CREATED SUCCESSFULLY!</b>\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `📝 <b>Title:</b> ${escapeHtml(test.title)}\n` +
+        `🏛 <b>Subject:</b> ${targetSubject.icon} ${escapeHtml(targetSubject.name)}\n` +
+        `❓ <b>Questions:</b> <b>${test.questions.length}</b> questions\n` +
+        `⏱ <b>Duration:</b> <b>${test.durationMinutes}</b> minutes\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `<b>Questions Preview (First 2):</b>\n\n`;
+
+      test.questions.slice(0, 2).forEach((q, idx) => {
+        previewText += `<b>Q${idx + 1}: ${escapeHtml(q.question)}</b>\n`;
+        q.options.forEach((opt, oIdx) => {
+          const isCorrect = LETTERS[oIdx] === q.correctAnswer;
+          previewText += `  • ${LETTERS[oIdx]}. ${escapeHtml(opt)} ${isCorrect ? "✅ <i>(Correct)</i>" : ""}\n`;
+        });
+        if (q.explanation) {
+          previewText += `  💡 <i>${escapeHtml(q.explanation)}</i>\n`;
+        }
+        previewText += `\n`;
+      });
+
+      previewText += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n<i>Ready to publish to candidates?</i>`;
+
+      const keyboard = new InlineKeyboard()
+        .text(`🚀 Broadcast to ${targetSubject.name.split(" ")[1] || "Group"}`, `ai_pub:${test.id}`)
+        .row()
+        .text("📝 Take Preview Mock", `take_${test.id}`)
+        .text("🗑 Delete Test", `del_test:${test.id}`);
+
+      await ctx.reply(previewText.slice(0, 4000), { parse_mode: "HTML", reply_markup: keyboard });
+      return;
+    }
+
+    // 2. LESSON NOTE GENERATION
+    if (aiResult.intent === "LESSON_NOTE" && aiResult.content) {
+      let noteText =
+        `📚 <b>AI LESSON NOTES: ${escapeHtml(aiResult.title || "Study Guide")}</b>\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        aiResult.content;
+
+      if (noteText.length > 3900) {
+        noteText = noteText.slice(0, 3900) + "...";
+      }
+
+      await ctx.reply(noteText, {
+        parse_mode: noteText.includes("<b") || noteText.includes("<i") ? "HTML" : undefined,
+        reply_markup: new InlineKeyboard().text("🏠 Student Portal", "dash:home")
+      });
+      return;
+    }
+
+    // 3. STUDENT PRACTICE DRILL
+    if (aiResult.intent === "STUDENT_DRILL" && Array.isArray(aiResult.questions) && aiResult.questions.length > 0) {
+      let drillText =
+        `🎯 <b>INSTANT AI PRACTICE DRILL</b>\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+      aiResult.questions.forEach((q, idx) => {
+        drillText += `<b>Q${idx + 1}: ${escapeHtml(q.text)}</b>\n`;
+        q.options?.forEach((opt, oIdx) => {
+          drillText += `  • ${LETTERS[oIdx]}. ${escapeHtml(opt)}\n`;
+        });
+        const correctLetter = LETTERS[q.correctIndex || 0];
+        drillText += `\n✅ <b>Answer: ${correctLetter}</b>\n`;
+        if (q.explanation) {
+          drillText += `💡 <i>${escapeHtml(q.explanation)}</i>\n`;
+        }
+        drillText += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      });
+
+      await ctx.reply(drillText.slice(0, 4000), {
+        parse_mode: "HTML",
+        reply_markup: new InlineKeyboard().text("🏠 Main Dashboard", "dash:home")
+      });
+      return;
+    }
+
+    // 4. ACADEMIC Q&A OR GENERAL AI RESPONSE
+    const replyText =
+      aiResult.response ||
+      aiResult.content ||
+      "I am your Phosters AI Academic Assistant! You can ask me any JAMB question, request a step-by-step calculation, or ask for quiz generation.";
+
+    if (replyText.length <= 3900) {
+      await ctx.reply(replyText, {
+        parse_mode: replyText.includes("<b") || replyText.includes("<i") ? "HTML" : undefined,
+        reply_markup: new InlineKeyboard().text("🏠 Main Dashboard", "dash:home")
+      });
+    } else {
+      for (let i = 0; i < replyText.length; i += 3800) {
+        await ctx.reply(replyText.slice(i, i + 3800));
+      }
+    }
+  } catch (err) {
+    console.error("AI Assistant Error:", err);
+    await ctx.reply(
+      `🤖 <b>Phosters AI Assistant:</b>\n` +
+      `I am ready to help you study! Ask me any past question, math formula, or request a quiz.\n\n` +
+      `<i>Examples:</i>\n` +
+      `• <i>"Explain the themes in The Life Changer"</i>\n` +
+      `• <i>"How do I solve quadratic equations by factorization?"</i>\n` +
+      `• <i>"Set a 5 question quiz on biology cell division"</i>`,
+      { parse_mode: "HTML" }
+    );
+  }
 });
 
 bot.on("message:document", async (ctx) => {
@@ -2501,6 +2797,61 @@ bot.on("message:video", async (ctx) => {
   );
 });
 
+bot.command(["ai", "ask"], async (ctx) => {
+  const prompt = ctx.match?.trim();
+  if (!prompt) {
+    return ctx.reply(
+      `🤖 <b>PHOSTERS ACADEMY AI ASSISTANT</b>\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `Powered by Groq 120B AI, you can talk to me naturally in plain English!\n\n` +
+      `👨‍🏫 <b>For Tutors:</b>\n` +
+      `• <i>"Set a 5 question quiz on biology cell division"</i>\n` +
+      `• <i>"Create 10 chemistry questions on organic alkanols with 15 mins timer"</i>\n` +
+      `• <i>"Write a lesson note on the themes of The Life Changer"</i>\n\n` +
+      `🎓 <b>For Students:</b>\n` +
+      `• <i>"How do I solve quadratic equations by formula?"</i>\n` +
+      `• <i>"Explain projectile motion and give the range formula"</i>\n` +
+      `• <i>"Test me with 3 practice questions on government colonial rule"</i>\n\n` +
+      `💬 <b>You don't need any special format — just type your request naturally in this chat!</b>`,
+      { parse_mode: "HTML" }
+    );
+  }
+
+  // Trigger natural language processing
+  ctx.message.text = prompt;
+  await ctx.replyWithChatAction("typing");
+  const student = getStudentProfile(ctx.from.id);
+  const tutorUser = isTutor(ctx);
+
+  try {
+    const aiResult = await processNaturalLanguage({
+      text: prompt,
+      user: ctx.from,
+      isTutorUser: tutorUser,
+      enrolledSubjects: student?.subjects || []
+    });
+
+    const replyText =
+      aiResult.response ||
+      aiResult.content ||
+      "I am ready to help you study! What topic would you like to explore today?";
+
+    if (replyText.length <= 3900) {
+      await ctx.reply(replyText, {
+        parse_mode: replyText.includes("<b") || replyText.includes("<i") ? "HTML" : undefined,
+        reply_markup: new InlineKeyboard().text("🏠 Main Dashboard", "dash:home")
+      });
+    } else {
+      for (let i = 0; i < replyText.length; i += 3800) {
+        await ctx.reply(replyText.slice(i, i + 3800));
+      }
+    }
+  } catch (err) {
+    console.error("AI command error:", err);
+    await ctx.reply("🤖 I am your AI Study Assistant. Type any question and I'll explain it step-by-step!");
+  }
+});
+
 bot.catch((err) => {
   console.error("Bot error:", err);
 });
@@ -2511,6 +2862,7 @@ async function main() {
   try {
     await bot.api.setMyCommands([
       { command: "start", description: "🏠 Open Student Dashboard" },
+      { command: "ai", description: "🤖 AI Study Assistant & Quiz Generator" },
       { command: "subjects", description: "🎯 Select 4 JAMB Subjects" },
       { command: "classrooms", description: "🏛 Subject Videos & PDF Notes" },
       { command: "tests", description: "📝 Practice Mock Tests" },
